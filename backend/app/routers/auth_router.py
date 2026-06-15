@@ -1,36 +1,40 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status, FastAPI
+from uuid import UUID
 
-from datetime import timedelta
-from pydantic import BaseModel
-
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from app.schemas import  UserCreate, UserResponse
 
-from app.database import Base, engine, get_db
-import app.models
+from app.database import get_db
+from app import models
+from app.schemas import UserCreate, UserPrivate, Token
+from app.auth import (
+    hash_password,
+    verify_and_update_password,
+    create_access_token,
+    get_current_user,
+)
 
-from app.auth import hash_password
+router = APIRouter(prefix="/auth", tags=["auth"])
 
-router = APIRouter()
 
-@router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def signup(body: UserCreate, db: Session = Depends(get_db)):
+@router.post("/signup", response_model=UserPrivate, status_code=status.HTTP_201_CREATED)
+def signup(body: UserCreate, db: Annotated[Session, Depends(get_db)]):
     existing = db.execute(
-        select(app.models.User).where(app.models.User.email == body.email)
+        select(models.User).where(models.User.email == body.email)
     ).scalars().first()
 
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            detail="Email already registered",
         )
 
-    new_user = app.models.User(
-        email           = body.email,
-        hashed_password = hash_password(body.password),   # ← the missing piece
-        fullname       = body.fullname,
+    new_user = models.User(
+        email=body.email,
+        hashed_password=hash_password(body.password),
+        full_name=body.fullname,  # confirm this matches your models.User column name
     )
     db.add(new_user)
     db.commit()
@@ -38,65 +42,57 @@ def signup(body: UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 
+@router.post("/login", response_model=Token)
+def login(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Annotated[Session, Depends(get_db)],
+):
+    user = db.execute(
+        select(models.User).where(models.User.email == form_data.username)
+    ).scalars().first()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    is_valid, new_hash = verify_and_update_password(form_data.password, user.hashed_password)
+
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is disabled",
+        )
+
+    # Opportunistic upgrade: old bcrypt hashes -> argon2
+    if new_hash is not None:
+        user.hashed_password = new_hash
+        db.commit()
+
+    access_token = create_access_token(data={"sub": str(user.id)})
+    return Token(access_token=access_token, token_type="bearer")
 
 
+@router.get("/me", response_model=UserPrivate)
+def read_current_user(current_user: Annotated[models.User, Depends(get_current_user)]):
+    return current_user
 
 
+@router.get("/users/{user_id}", response_model=UserPrivate)
+def get_user(user_id: UUID, db: Annotated[Session, Depends(get_db)]):
+    user = db.execute(
+        select(models.User).where(models.User.id == user_id)
+    ).scalars().first()
 
-
-
-
-# app = FastAPI()
-
-
-# @app.post("/api/users", response_model=UserResponse)
-# def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)]):  #user  -> request body Usercreate -> a body validator from pydantic
-#     result  =  db.execute(
-#         select(app.models.User).where(app.models.User.username == user.username),
-#     )
-#     existing_user  = result.scalars().first()
-#     if existing_user:
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail="Username already exists"
-#         )
-    
-#     result  =  db.execute(
-#         select(app.models.User).where(app.models.User.email == user.email),
-#     )
-#     existing_email  = result.scalars().first()
-#     if existing_email:
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail="Username already exists"
-#         )
-    
-#     new_user = app.models.User(
-#         username = user.username,
-#         email = user.email,
-#     )
-
-#     db.add(new_user)
-#     db.commit()
-#     db.refresh(new_user)
-
-#     return new_user
-
-# @app.get("/api/users/{user_id}", response_model=UserResponse)
-# def get_user(user_id: int,  db: Annotated[Session, Depends(get_db)]):
-#     result  =  db.execute(
-#         select(app.models.User).where(app.models.User.id == user_id),
-#     )
-#     user  = result.scalars().first()
-
-#     if user:
-#         return user
-    
-#     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    
-
-
-
-
-# app.include_router(sms_router.router)
-
+    if user:
+        return user
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
