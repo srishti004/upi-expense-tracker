@@ -1,3 +1,9 @@
+{
+  "email": "srishti@example.com",
+  "fullname": "srishti",
+  "password": "strongpass123"
+}
+
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 

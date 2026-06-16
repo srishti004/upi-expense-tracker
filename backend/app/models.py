@@ -114,12 +114,12 @@ class Transaction(Base):
         index=True
     )
 
-    is_manually_categorised: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=False
-    )
-
+    is_manually_categorized: Mapped[bool] = mapped_column(
+    Boolean,
+    nullable=False,
+    default=False
+)
+    
     raw_sms: Mapped[str] = mapped_column(
         Text,
         nullable=False
