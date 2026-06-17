@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import JSONResponse
 from app.database import get_db
 from app.schemas import SMSParseRequest, TransactionResponse
 import app.models
