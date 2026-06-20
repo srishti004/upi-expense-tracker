@@ -9,8 +9,7 @@ DATABASE_URL = "postgresql+psycopg2://postgres:root@localhost:5432/expense_track
 # 1. Create your database engine connection
 engine = create_engine(DATABASE_URL, echo=True)
 
-with engine.connect() as conn:
-    print("Connected successfully!")
+
 
 SessionLocal = sessionmaker(
     bind=engine,

@@ -93,17 +93,75 @@ class BudgetUpdate(BaseModel):
 
 class BudgetResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-
+ 
     id: uuid.UUID
     user_id: uuid.UUID
     category: str
     monthly_limit: Decimal
     alert_threshold: Decimal
     is_active: bool
-
-
+ 
+ 
 class BudgetSummaryResponse(BaseModel):
     category: str
     monthly_limit: Decimal
     alert_threshold: Decimal
     spent: Decimal
+
+# ─── Analytics schemas ────────────────────────────────────────────
+ 
+class CategorySpend(BaseModel):
+    category:   str
+    spent:      Decimal
+    count:      int
+    percentage: float   # e.g. 24.8 means 24.8% of total spending
+ 
+ 
+class RecentTransaction(BaseModel):
+    id:       uuid.UUID
+    merchant: Optional[str] = None
+    amount:   Decimal
+    category: str
+    txn_type: str
+    txn_date: date
+ 
+ 
+class BudgetAlert(BaseModel):
+    category:        str
+    spent:           Decimal
+    monthly_limit:   Decimal
+    usage_percent:   float   # e.g. 84.0 means 84% used
+    alert_threshold: float   # e.g. 80.0 means alert fires at 80%
+
+
+class DashboardResponse(BaseModel):
+    total_spent_this_month:  Decimal
+    total_spent_last_month:  Decimal
+    month_over_month_change: float
+    spending_by_category:    list[CategorySpend]
+    recent_transactions:     list[RecentTransaction]
+    budget_alerts:           list[BudgetAlert]
+ 
+ 
+class SpendingByDateRange(BaseModel):
+    from_date:      date
+    to_date:        date
+    total_spent:    Decimal
+    total_credited: Decimal
+    by_category:    list[CategorySpend]
+    by_merchant:    list[dict]   # merchant name not typed — varies too much
+ 
+ 
+class MonthlyTrend(BaseModel):
+    month:    str       # "2026-04"
+    spent:    Decimal
+    credited: Decimal
+ 
+ 
+class CategoryDrilldown(BaseModel):
+    category:     str
+    month:        str
+    total_spent:  Decimal
+    count:        int
+    transactions: list[RecentTransaction]   # reuse — same shape needed here
+ 

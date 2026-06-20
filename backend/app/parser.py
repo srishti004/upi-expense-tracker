@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 import re
 from dataclasses import dataclass
 from typing import Optional
@@ -421,3 +424,9 @@ def parse_upi_sms(sms: str) -> ParsedSMS:
         bank=bank,
         vpa=vpa,
     )
+
+
+
+
+if __name__ == "__main__":
+    print(parse_upi_sms("Rs.450 debited from A/c XX1234 for UPI txn to Zomato on 04-Apr."))

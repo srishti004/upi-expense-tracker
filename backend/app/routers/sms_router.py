@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from app.database import get_db
@@ -40,13 +40,29 @@ def parse_sms(
 
     category = get_category(result.merchant)
 
+
+    def parse_txn_date(raw_date: str | None) -> date:
+        """Convert '04-Apr' or '04-Apr-24' from SMS into a date object."""
+        if not raw_date:
+            return datetime.today().date()
+        try:
+            # try with year first
+            return datetime.strptime(raw_date, "%d-%b-%y").date()
+        except ValueError:
+            try:
+                # no year — assume current year
+                parsed = datetime.strptime(raw_date, "%d-%b")
+                return parsed.replace(year=datetime.today().year).date()
+            except ValueError:
+                return datetime.today().date()  # fallback
+
     txn = app.models.Transaction(
         user_id        = current_user.id,
         amount         = result.amount,
         txn_type       = result.txn_type,
         merchant       = result.merchant,
         account_masked = result.account,
-        txn_date       = result.txn_date,
+        txn_date       = parse_txn_date(result.txn_date),
         category       = category,
         raw_sms        = body.raw_sms,
     )
