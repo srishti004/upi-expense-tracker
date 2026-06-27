@@ -164,4 +164,21 @@ class CategoryDrilldown(BaseModel):
     total_spent:  Decimal
     count:        int
     transactions: list[RecentTransaction]   # reuse — same shape needed here
+
+
+class BulkSMSRequest(BaseModel):
+    messages: list[str] = Field(min_length=1, max_length=50)
+    # list of raw SMS strings, max 50 at once
+
+class BulkSMSResult(BaseModel):
+    raw_sms:  str
+    success:  bool
+    transaction: Optional[TransactionResponse] = None
+    error:    Optional[str] = None   # why it failed if success=False
+
+class BulkSMSResponse(BaseModel):
+    total:    int
+    saved:    int
+    skipped:  int
+    results:  list[BulkSMSResult]
  
