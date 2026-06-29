@@ -52,7 +52,7 @@ MERCHANT_CATEGORIES: dict[str, str] = {
     "practo":       "Health",
  
     # Entertainment
-    "netflix":              "Subscriptions",
+    "netflix":              "Entertainment" ,
     "spotify":              "Subscriptions",
     "hotstar":              "Subscriptions",
     "youtube":              "Subscriptions",
@@ -64,6 +64,8 @@ MERCHANT_CATEGORIES: dict[str, str] = {
 
     # Transfers
     "p2ptransfer":   "Transfers",
+
+    "bigbasket": "Groceries"
 }
  
  
@@ -78,7 +80,7 @@ def get_category(merchant: Optional[str]) -> str:
         get_category("UnknownX") # → "Other"
     """
     if not merchant:
-        return "Other"
+        return "Uncategorized"
     
     # P2P transfers — catch before dict lookup
     if merchant == PERSON_TRANSFER:        # "P2P Transfer"
@@ -88,4 +90,4 @@ def get_category(merchant: Optional[str]) -> str:
     key = merchant.lower().strip()
     key = key.replace(" ", "").replace(".", "")  # "Tata Power" → "tatapower"
  
-    return MERCHANT_CATEGORIES.get(key, "Other")
+    return MERCHANT_CATEGORIES.get(key, "Uncategorized")
