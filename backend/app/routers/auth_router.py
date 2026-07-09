@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
 from app import models
@@ -34,12 +35,16 @@ def signup(body: UserCreate, db: Annotated[Session, Depends(get_db)]):
     new_user = models.User(
         email=body.email,
         hashed_password=hash_password(body.password),
-        full_name=body.fullname,  # confirm this matches your models.User column name
+        fullname=body.fullname,  # confirm this matches your models.User column name
     )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return new_user
+    try:
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        return new_user
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Email already registered")
 
 
 @router.post("/login", response_model=Token)

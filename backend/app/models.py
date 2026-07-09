@@ -31,7 +31,6 @@ class User(Base):
 
     fullname: Mapped[str] = mapped_column(
         String(100),
-        unique=True,
         nullable=True
     )
 
