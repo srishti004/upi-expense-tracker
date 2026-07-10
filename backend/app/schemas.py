@@ -47,12 +47,12 @@ class Token(BaseModel):
 
 
 class SMSParseRequest(BaseModel):
-    raw_sms: str = Field(min_length=1, max_length=300)
+    raw_sms: str 
 
 
 class TransactionBase(BaseModel):
     amount: Decimal
-    raw_sms: str = Field(min_length=1, max_length=100)
+    raw_sms: str 
 
 
 class TransactionCreate(TransactionBase):
