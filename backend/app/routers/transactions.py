@@ -2,7 +2,7 @@ from typing import Annotated, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, extract
+from sqlalchemy import select, extract, func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -13,7 +13,7 @@ from app.auth import get_current_user
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
 
-@router.get("", response_model=list[TransactionResponse])
+@router.get("", response_model=dict)
 def list_transactions(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[models.User, Depends(get_current_user)],
@@ -23,28 +23,33 @@ def list_transactions(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ):
-    """
-    GET /api/transactions
-    Filters: ?month=6&year=2026&category=Food
-    Pagination: ?page=1&page_size=20
-    Always scoped to current user.
-    """
-    query = select(models.Transaction).where(
-        models.Transaction.user_id == current_user.id  # ← security: own data only
+    base_query = select(models.Transaction).where(
+        models.Transaction.user_id == current_user.id
     )
 
     if month:
-        query = query.where(extract("month", models.Transaction.txn_date) == month)
+        base_query = base_query.where(extract("month", models.Transaction.txn_date) == month)
     if year:
-        query = query.where(extract("year", models.Transaction.txn_date) == year)
+        base_query = base_query.where(extract("year", models.Transaction.txn_date) == year)
     if category:
-        query = query.where(models.Transaction.category == category)
+        base_query = base_query.where(models.Transaction.category == category)
 
-    query = query.order_by(models.Transaction.txn_date.desc())
-    query = query.offset((page - 1) * page_size).limit(page_size)
+    # get total count before pagination
+    total = db.execute(select(func.count()).select_from(base_query.subquery())).scalar()
 
-    transactions = db.execute(query).scalars().all()
-    return transactions
+    # apply pagination
+    transactions = db.execute(
+        base_query.order_by(models.Transaction.txn_date.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).scalars().all()
+
+    return {
+        "transactions": [TransactionResponse.model_validate(t) for t in transactions],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
 
 
 @router.put("/{transaction_id}/category", response_model=TransactionResponse)
