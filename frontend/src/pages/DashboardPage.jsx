@@ -73,15 +73,15 @@ export default function DashboardPage() {
   }
 
   const pieData = (dashboard.spending_by_category || []).map((c) => ({
-    name: c.category,
-    value: Number(c.total),
-  }))
+  name: c.category,
+  value: Number(c.spent),    // ✅ correct
+}))
 
   const barData = trend.map((t) => ({
-    name: t.month,
-    Debit: Number(t.total_debit),
-    Credit: Number(t.total_credit),
-  }))
+  name: t.month,
+  Debit: Number(t.spent),      // ✅ matches API
+  Credit: Number(t.credited),  // ✅ matches API
+}))
 
   return (
     <div>
@@ -94,25 +94,25 @@ export default function DashboardPage() {
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 32 }}>
         <StatCard
-          label="Total Spent"
-          value={fmt(dashboard.total_spent || 0)}
-          color="var(--color-debit)"
-        />
-        <StatCard
-          label="Total Received"
-          value={fmt(dashboard.total_credited || 0)}
-          color="var(--color-credit)"
-        />
-        <StatCard
-          label="Transactions"
-          value={dashboard.total_transactions}
-          color="var(--color-accent-light)"
-        />
-        <StatCard
-          label="This Month"
-          value={fmt(dashboard.this_month_spent || 0)}
-          color="var(--color-text)"
-        />
+  label="This Month"
+  value={fmt(dashboard.total_spent_this_month || 0)}
+  color="var(--color-debit)"
+/>
+<StatCard
+  label="Last Month"
+  value={fmt(dashboard.total_spent_last_month || 0)}
+  color="var(--color-text)"
+/>
+<StatCard
+  label="Month Change"
+  value={`${dashboard.month_over_month_change > 0 ? '+' : ''}${dashboard.month_over_month_change}%`}
+  color={dashboard.month_over_month_change <= 0 ? 'var(--color-credit)' : 'var(--color-debit)'}
+/>
+<StatCard
+  label="Categories"
+  value={dashboard.spending_by_category?.length || 0}
+  color="var(--color-accent-light)"
+/>
       </div>
 
       {/* Charts row */}
