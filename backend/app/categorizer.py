@@ -20,6 +20,7 @@ MERCHANT_CATEGORIES: dict[str, str] = {
     "blinkit":             "Food",
     "zepto":               "Food",
     "Haldiram V Square M": "Food",
+    "bigbasket":           "Groceries",
  
     # Travel & transport
     "uber":         "Travel",

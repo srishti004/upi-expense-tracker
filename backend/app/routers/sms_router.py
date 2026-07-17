@@ -36,34 +36,47 @@ def parse_sms(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[app.models.User, Depends(get_current_user)],
 ):
-    # duplicate check — same user, same raw SMS
-    existing = db.execute(
-        select(app.models.Transaction).where(
-            app.models.Transaction.user_id == current_user.id,
-            app.models.Transaction.raw_sms == body.raw_sms,
-        )
-    ).scalars().first()
-
-    if existing:
-        raise HTTPException(
-            status_code=409,
-            detail="This SMS has already been parsed and saved",
-        )
-
+    # 1. Parse first
     result = parse_upi_sms(body.raw_sms)
 
+    # 2. Validate
     if not result.is_upi:
         raise HTTPException(
-            status_code=400,
-            detail="This doesn't look like a UPI transaction SMS",
+            status_code=422,
+            detail="This doesn't look like a UPI/bank transaction SMS. Make sure you're pasting the original bank message."
         )
 
     if result.amount is None:
         raise HTTPException(
             status_code=422,
-            detail="Could not extract amount from this SMS",
+            detail="Could not extract the transaction amount. Try copying the full SMS including the amount."
         )
 
+    if result.txn_type is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Could not determine if this is a debit or credit transaction."
+        )
+
+    # 3. Parse date — needed for duplicate check
+    txn_date = parse_txn_date(result.txn_date)
+
+    # 4. Duplicate check — now result and txn_date both exist
+    existing = db.query(app.models.Transaction).filter(
+        app.models.Transaction.user_id == current_user.id,
+        app.models.Transaction.amount == result.amount,
+        app.models.Transaction.txn_date == txn_date,
+        app.models.Transaction.merchant == result.merchant,
+        app.models.Transaction.txn_type == result.txn_type,
+    ).first()
+
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail="Transaction already exists",
+        )
+
+    # 5. Categorize and save
     category = get_category(result.merchant)
 
     txn = app.models.Transaction(
@@ -72,7 +85,7 @@ def parse_sms(
         txn_type=result.txn_type,
         merchant=result.merchant,
         account_masked=result.account,
-        txn_date=parse_txn_date(result.txn_date),
+        txn_date=txn_date,
         category=category,
         raw_sms=body.raw_sms,
     )
@@ -112,14 +125,24 @@ def parse_bulk_sms(
 
             result = parse_upi_sms(raw_sms)
 
-            if not result.is_upi or result.amount is None:
+            if not result.is_upi :
                 skipped += 1
                 results.append(BulkSMSResult(
                     raw_sms=raw_sms,
                     success=False,
-                    error="Not a valid UPI transaction SMS",
+                    error="Not a UPI/bank SMS — make sure you paste the original bank message",
                 ))
                 continue
+
+            if result.amount is None:
+                skipped += 1
+                results.append(BulkSMSResult(
+                    raw_sms=raw_sms,
+                    success=False,
+                    error="Could not extract amount — try copying the full SMS",
+                ))
+                continue
+            
 
             category = get_category(result.merchant)
             
@@ -133,6 +156,19 @@ def parse_bulk_sms(
                 category=category,
                 raw_sms=raw_sms,
             )
+
+            txn_date = parse_txn_date(result.txn_date)
+
+            existing = db.query(app.models.Transaction).filter(
+                app.models.Transaction.user_id == current_user.id,
+                app.models.Transaction.amount == result.amount,
+                app.models.Transaction.txn_date == txn_date,
+                app.models.Transaction.merchant == result.merchant,
+                app.models.Transaction.txn_type == result.txn_type,
+                ).first()
+            
+
+
             db.add(txn)
             db.flush()   # assigns UUID without committing yet
             db.refresh(txn)
@@ -145,11 +181,12 @@ def parse_bulk_sms(
             ))
 
         except Exception as e:
+            db.rollback()
             skipped += 1
             results.append(BulkSMSResult(
                 raw_sms=raw_sms,
                 success=False,
-                error=str(e),
+                error=str(e),  # ← temporarily show real error
             ))
 
     db.commit()   # one commit for all successful inserts

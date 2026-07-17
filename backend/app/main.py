@@ -1,4 +1,5 @@
 #source venv/Scripts/activate
+#uvicorn app.main:app --reload
 from fastapi import  FastAPI
 
 from app.routers import auth_router, sms_router, transactions, budgets,analytics

@@ -10,6 +10,8 @@ from app import models
 from app.schemas import TransactionResponse, TransactionCategoryUpdate
 from app.auth import get_current_user
 
+from app.categorizer import get_category
+
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
 
@@ -82,6 +84,38 @@ def update_category(
     db.commit()
     db.refresh(txn)
     return txn
+
+@router.post("/recategorize")
+def recategorize_transactions(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[models.User, Depends(get_current_user)],
+):
+    """
+    Re-runs categorization on all transactions that haven't been
+    manually categorized by the user. Safe to run multiple times.
+    """
+    # Only touch transactions the user hasn't manually edited
+    transactions = db.execute(
+        select(models.Transaction).where(
+            models.Transaction.user_id == current_user.id,
+            models.Transaction.is_manually_categorized == False,
+        )
+    ).scalars().all()
+
+    updated = 0
+    for txn in transactions:
+        new_category = get_category(txn.merchant)
+        if new_category != txn.category:
+            txn.category = new_category
+            updated += 1
+
+    db.commit()
+
+    return {
+        "total_checked": len(transactions),
+        "updated": updated,
+        "message": f"Recategorized {updated} transactions"
+    }
 
 
 #*********************BUG********************************#
