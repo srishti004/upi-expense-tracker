@@ -14,8 +14,8 @@ export default function Sidebar() {
 
   const handleLogout = () => {
     logout()
-    navigate('/login')
-  }
+    navigate('/')  // ← go to landing page after logout, was /login
+}
 
   return (
     <aside style={{
