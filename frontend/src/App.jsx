@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import AppLayout from './components/AppLayout'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
+import LandingPage from './pages/LandingPage'
 import { DashboardPage, TransactionsPage, ParsePage, BudgetsPage } from './pages/index.jsx'
 
 function ProtectedLayout({ children }) {
@@ -19,6 +20,9 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Landing */}
+          <Route path="/" element={<LandingPage />} />
+
           {/* Public */}
           <Route path="/login"  element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
@@ -30,7 +34,7 @@ export default function App() {
           <Route path="/budgets"      element={<ProtectedLayout><BudgetsPage /></ProtectedLayout>} />
 
           {/* Default */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

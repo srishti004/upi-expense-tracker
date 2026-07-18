@@ -8,5 +8,5 @@ export default function ProtectedRoute({ children }) {
     return <div style={{ padding: 24 }}>Loading...</div>
   }
 
-  return user ? children : <Navigate to="/login" replace />
+  return user ? children : <Navigate to="/" replace />
 }
