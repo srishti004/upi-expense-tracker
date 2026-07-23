@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getTransactions, updateCategory } from '../api'
+import client from '../api/client'
 
 const CATEGORIES = [
   'Food', 'Transport', 'Shopping', 'Entertainment', 'Bills',
@@ -8,12 +9,12 @@ const CATEGORIES = [
 ]
 
 const MONTHS = [
-  { value: 1, label: 'January' }, { value: 2, label: 'February' },
-  { value: 3, label: 'March' },   { value: 4, label: 'April' },
-  { value: 5, label: 'May' },     { value: 6, label: 'June' },
-  { value: 7, label: 'July' },    { value: 8, label: 'August' },
-  { value: 9, label: 'September' },{ value: 10, label: 'October' },
-  { value: 11, label: 'November' },{ value: 12, label: 'December' },
+  { value: 1,  label: 'January' },  { value: 2,  label: 'February' },
+  { value: 3,  label: 'March' },    { value: 4,  label: 'April' },
+  { value: 5,  label: 'May' },      { value: 6,  label: 'June' },
+  { value: 7,  label: 'July' },     { value: 8,  label: 'August' },
+  { value: 9,  label: 'September' },{ value: 10, label: 'October' },
+  { value: 11, label: 'November' }, { value: 12, label: 'December' },
 ]
 
 export default function TransactionsPage() {
@@ -35,6 +36,10 @@ export default function TransactionsPage() {
   const [editingId, setEditingId] = useState(null)
   const [editingCategory, setEditingCategory] = useState('')
 
+  // Recategorize
+  const [recatLoading, setRecatLoading] = useState(false)
+  const [recatMsg, setRecatMsg] = useState('')
+
   const fetchTransactions = async () => {
     setLoading(true)
     setError('')
@@ -54,23 +59,31 @@ export default function TransactionsPage() {
     }
   }
 
-  // Fetch whenever filters or page change
   useEffect(() => {
     fetchTransactions()
-  }, [page, month,year, category])
-
-  const handleFilterChange = () => {
-    setPage(1)      // reset to first page when filter changes
-    fetchTransactions()
-  }
+  }, [page, month, year, category])
 
   const handleCategoryUpdate = async (id) => {
     try {
       await updateCategory(id, editingCategory)
       setEditingId(null)
-      fetchTransactions()   // refresh list
+      fetchTransactions()
     } catch (err) {
       alert('Failed to update category')
+    }
+  }
+
+  const handleRecategorize = async () => {
+    setRecatLoading(true)
+    setRecatMsg('')
+    try {
+      const data = await client.post('/api/transactions/recategorize').then(r => r.data)
+      setRecatMsg(`✓ ${data.message}`)
+      fetchTransactions()
+    } catch (err) {
+      setRecatMsg('Failed to recategorize')
+    } finally {
+      setRecatLoading(false)
     }
   }
 
@@ -79,12 +92,34 @@ export default function TransactionsPage() {
   return (
     <div>
       {/* Header */}
-      <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700 }}>
-        Transactions
-      </h2>
-      <p style={{ margin: '0 0 24px', color: 'var(--color-muted)', fontSize: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>Transactions</h2>
+        <button
+          onClick={handleRecategorize}
+          disabled={recatLoading}
+          style={{
+            padding: '7px 14px',
+            background: 'transparent',
+            border: '1px solid var(--color-border)',
+            borderRadius: 6,
+            color: 'var(--color-muted)',
+            fontSize: 13,
+            cursor: recatLoading ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {recatLoading ? 'Updating…' : '↻ Fix categories'}
+        </button>
+      </div>
+
+      <p style={{ margin: '0 0 16px', color: 'var(--color-muted)', fontSize: 14 }}>
         {total} transactions found
       </p>
+
+      {recatMsg && (
+        <p style={{ fontSize: 13, color: 'var(--color-credit)', margin: '0 0 16px' }}>
+          {recatMsg}
+        </p>
+      )}
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -132,7 +167,15 @@ export default function TransactionsPage() {
 
       {/* Error */}
       {error && (
-        <div style={{ padding: '10px 14px', background: 'rgba(255,107,107,0.1)', border: '1px solid rgba(255,107,107,0.3)', borderRadius: 6, color: 'var(--color-debit)', fontSize: 14, marginBottom: 16 }}>
+        <div style={{
+          padding: '10px 14px',
+          background: 'rgba(255,107,107,0.1)',
+          border: '1px solid rgba(255,107,107,0.3)',
+          borderRadius: 6,
+          color: 'var(--color-debit)',
+          fontSize: 14,
+          marginBottom: 16,
+        }}>
           {error}
         </div>
       )}
@@ -195,13 +238,29 @@ export default function TransactionsPage() {
                     </select>
                     <button
                       onClick={() => handleCategoryUpdate(txn.id)}
-                      style={{ padding: '4px 8px', background: 'var(--color-accent)', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, cursor: 'pointer' }}
+                      style={{
+                        padding: '4px 8px',
+                        background: 'var(--color-accent)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 4,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                      }}
                     >
                       Save
                     </button>
                     <button
                       onClick={() => setEditingId(null)}
-                      style={{ padding: '4px 8px', background: 'transparent', color: 'var(--color-muted)', border: '1px solid var(--color-border)', borderRadius: 4, fontSize: 12, cursor: 'pointer' }}
+                      style={{
+                        padding: '4px 8px',
+                        background: 'transparent',
+                        color: 'var(--color-muted)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 4,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                      }}
                     >
                       ✕
                     </button>

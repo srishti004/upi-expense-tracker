@@ -27,6 +27,9 @@ export const getTransactions = (params = {}) =>
 export const updateCategory = (id, category) =>
   client.put(`/api/transactions/${id}/category`, { category }).then((r) => r.data)
 
+export const recategorizeTransactions = () =>
+  client.post('/api/transactions/recategorize').then((r) => r.data)
+
 // ── Budgets ────────────────────────────────────────────
 export const getBudgets = () =>
   client.get('/api/budgets').then((r) => r.data)
