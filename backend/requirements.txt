@@ -1,6 +1,7 @@
+cat > requirements.txt << 'EOF'
 fastapi==0.111.0
 uvicorn==0.29.0
-pydantic==2.7.1
+pydantic[email]==2.7.1
 python-dotenv==1.0.1
 pytest==8.2.0
 httpx==0.27.0
@@ -10,4 +11,4 @@ pydantic-settings
 sqlalchemy==2.0.30
 alembic==1.13.1
 psycopg2-binary==2.9.9
-email-validator
+EOF
