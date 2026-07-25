@@ -20,7 +20,7 @@ app = FastAPI()
 
 origins = [
     "http://localhost:5173",
-    "https://upi-expense-tracker-zeta.vercel.app/",
+    "https://upi-expense-tracker-zeta.vercel.app",
 ]
 
 
