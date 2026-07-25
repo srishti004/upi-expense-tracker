@@ -1,4 +1,4 @@
-import Sidebar from './sidebar'
+import Sidebar from './Sidebar'
 
 export default function AppLayout({ children }) {
   return (
