@@ -1,8 +1,7 @@
 import axios from 'axios'
 
 const client = axios.create({
-  baseURL: '/',
-  
+  baseURL: import.meta.env.VITE_API_URL || '/',
 })
 
 // Attach JWT on every request
