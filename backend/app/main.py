@@ -1,6 +1,7 @@
 #source venv/Scripts/activate
 #uvicorn app.main:app --reload
 from fastapi import  FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import auth_router, sms_router, transactions, budgets,analytics
 
@@ -10,13 +11,13 @@ from app.routers import auth_router, sms_router, transactions, budgets,analytics
 app = FastAPI()
 
 
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["http://localhost:5173"],  # React dev server
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # React dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+     allow_headers=["*"],
+ )
 
 origins = [
     "http://localhost:5173",
